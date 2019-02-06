@@ -1,0 +1,139 @@
+#include "stdafx.h"
+#include <iostream>
+#include <cstdlib>
+#include <WinSock2.h>
+#include <BluetoothAPIs.h>
+#include <ws2bth.h>
+
+using namespace std;
+
+// UCHWYT na adapter obecnie podlaczony do komputera
+	HANDLE adapter;
+
+// ZMIENNE przechowujace parametry adaptera i urzadzenia docelowego
+	BLUETOOTH_FIND_RADIO_PARAMS adapter_params = { sizeof(adapter_params) };
+	BLUETOOTH_DEVICE_SEARCH_PARAMS device_params = { sizeof(device_params) };
+
+// ZMIENNE przechowujaca znaleziony adapter i urzadzenie docelowe
+	HBLUETOOTH_RADIO_FIND adapter_find = nullptr;
+	HBLUETOOTH_DEVICE_FIND device_find = nullptr;
+
+// TABLICA STRUKTUR opisujacych urzadzenia Bluetooth
+	BLUETOOTH_DEVICE_INFO device_info[10];
+
+// ZMIENNA okreslajaca, czy znaleziony zostal adapter
+	bool adapterfound = false;
+
+
+// FUNKCJA wyszukujaca adapter podlaczony do komputera
+
+void findAdatper() {
+	// funkcja zaczynajaca wyszukiwanie adapterów,
+	// pierwszy to wskaznik na strukture BLUETOOTH_FIND_RADIO_PARAMS,
+	// a drugi to wskaznik, gdzie zwrócony zostanie uchwyt pierwszego znalezionego adaptera
+
+	adapter_find = BluetoothFindFirstRadio(&adapter_params, &adapter);
+	if (adapter_find == nullptr) {
+		cout << "Nie znaleziono adaptera BT" << endl;
+		adapterfound = false;
+	}
+	else {
+		cout << "Znaleziono radio: " << adapter_find << endl;
+		adapterfound = true;
+	}
+}
+
+
+
+// FUNKCJA znajdujaca urzadzenia docelowe
+
+void findDevice() {
+
+	// zmienna przechowujaca liczbe znalezionych urzadzen
+	int number_of_devices = 0;
+	
+	// parametry poszukiwanych urzadzen
+	device_params = { sizeof(BLUETOOTH_DEVICE_SEARCH_PARAMS), 1, 0, 1, 1, 1, 3, adapter };
+
+	// inicjalizacja zmiennej przechowujacej informacje o urzadzeniu
+	device_info[number_of_devices].dwSize = { sizeof(BLUETOOTH_DEVICE_INFO) };
+
+	// przypisanie do zmiennej informacji o pierwszym znalezionym urzadzeniu BT
+	device_find = BluetoothFindFirstDevice(&device_params, &device_info[number_of_devices]);
+
+	// wyswietlenie informacji, jezeli urzadzei zostalo znalezione
+	if (device_find == NULL) {
+		cout << "Nie udalo sie znalezc urzadzenia." << endl;
+	}
+
+	else {
+		cout << "Znaleziono urzadzenie: " << number_of_devices << endl << endl;
+		cout << "Adres: " << device_info[number_of_devices].Address.ullLong << endl;
+		cout << "Klasa: " << device_info[number_of_devices].ulClassofDevice << endl;
+		cout << "Nazwa: " << device_info[number_of_devices].szName << endl;
+		cout << "Autentykacja: " << device_info[number_of_devices].fAuthenticated << endl << endl;
+		number_of_devices++;
+
+		// jezeli dostepne sa kolejne urzadzenia, pobranie ich informacji
+		// dane wszytkich urzadzen przechowywane sa w TABLICY
+		while (BluetoothFindNextDevice(device_find,
+			&device_info[number_of_devices])) {
+			cout << "Znaleziono urzadzenie " << number_of_devices << endl << endl;
+			cout << "Adres: " << device_info[number_of_devices].Address.ullLong << endl;
+			cout << "Klasa: " << device_info[number_of_devices].ulClassofDevice << endl;
+			cout << "Nazwa: " << device_info[number_of_devices].szName << endl;
+			cout << "Autentykacja: " << device_info[number_of_devices].fAuthenticated << endl << endl;
+			number_of_devices++;
+		}
+
+	}
+}
+
+void autenthicateDevices() {
+
+	// numer wybranego urzadzenia Bluetooth
+	int selected;
+
+	cout << "Wybierz urzadzenie: ";
+		cin >> selected;
+	
+	// funkcja wysyla zadanie uwierzytelniania do zdalnego urzadzenia Bluetooth
+	// w drugim parametrze podajemy uchwyt do adaptera
+	// w trzecim wskaznik na strukture BLUETOOTH_DEVICE_INFO
+	// w piatym podajemy wymagania autentykacji
+	// pozostald parametry nie byly istotne dla wykonania naszego celu
+	BluetoothAuthenticateDeviceEx(NULL, adapter, &device_info[selected], NULL,
+		MITMProtectionNotRequired);
+}
+
+
+// FUNKCJA wysylajaca dane do urzadzenia docelowego
+
+void sendData() {
+
+	// stworzenie gniazda sieciowego dla protokolu BT
+	WSADATA socket_data;
+
+	// 1. OBEX_CONNECT, ustanawiajacy polaczenie
+	// 2. OBEX_NAME, przekazujacy nazwe pliku
+	// 3. OBEX_BODY, przekazujacy zawartosc pliku
+	// 4. OBEX_END_OF_BODY, informujacy o koncu pliku
+	// 5. OBEX_DISCONNECT, zamykajacy transmisje
+
+	
+}
+
+// GLOWNA FUNKCJA PROGRAMU - wywolania
+
+int _tmain(int argc, _TCHAR* argv[]) {
+	cout << "Wyszukiwanie adaptera..." << endl << endl;
+	findAdatper();
+	cout << "Wyszukiwanie urzadzen lokalnych..." << endl << endl;
+	findDevice();
+	cout << "Autentykacja urzadzenia..." << endl << endl;
+	autenthicateDevices();
+	cout << "Wysylanie pliku..." << endl << endl;
+	sendData();
+	system("PAUSE");
+	return 0;
+}
